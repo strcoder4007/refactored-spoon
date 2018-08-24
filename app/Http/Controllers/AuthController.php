@@ -1,5 +1,6 @@
 <?php
 namespace App\Http\Controllers;
+use App\Notifications\SignupActivate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -20,7 +21,8 @@ class AuthController extends Controller
         $request->validate([
             'name' => 'required|string',
             'email' => 'required|string|email|unique:users',
-            'password' => 'required|string|confirmed'
+            'password' => 'required|string|confirmed',
+            'activation_token' => str_random(60)
         ]);
         $user = new User([
             'name' => $request->name,
@@ -28,10 +30,26 @@ class AuthController extends Controller
             'password' => bcrypt($request->password)
         ]);
         $user->save();
+        //$user->notify(new SignupActivate($user));
         return response()->json([
             'message' => 'Successfully created user!'
         ], 201);
     }
+
+
+    public function signupActivate($token)
+{
+    $user = User::where('activation_token', $token)->first();
+    if (!$user) {
+        return response()->json([
+            'message' => 'This activation token is invalid.'
+        ], 404);
+    }
+    $user->active = true;
+    $user->activation_token = '';
+    $user->save();
+    return $user;
+}
   
     /**
      * Login user and create token
